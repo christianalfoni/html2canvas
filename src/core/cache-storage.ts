@@ -63,7 +63,7 @@ export class CacheStorage {
 
 export interface ResourceOptions {
     imageTimeout: number;
-    useCORS: boolean;
+    useCORS: boolean | ((src: string) => boolean);
     allowTaint: boolean;
     proxy?: string;
 }
@@ -102,7 +102,7 @@ export class Cache {
     private async loadImage(key: string) {
         const isSameOrigin = CacheStorage.isSameOrigin(key);
         const useCORS =
-            !isInlineImage(key) && this._options.useCORS === true && FEATURES.SUPPORT_CORS_IMAGES && !isSameOrigin;
+            !isInlineImage(key) && Boolean(this._options.useCORS) && FEATURES.SUPPORT_CORS_IMAGES && !isSameOrigin;
         const useProxy =
             !isInlineImage(key) &&
             !isSameOrigin &&
@@ -125,7 +125,11 @@ export class Cache {
             img.onload = () => resolve(img);
             img.onerror = reject;
             //ios safari 10.3 taints canvas with data urls unless crossOrigin is set to anonymous
-            if (isInlineBase64Image(src) || useCORS) {
+            if (
+                isInlineBase64Image(src) ||
+                (typeof this._options.useCORS === 'function' && this._options.useCORS(src)) ||
+                useCORS
+            ) {
                 img.crossOrigin = 'anonymous';
             }
             img.src = src;
